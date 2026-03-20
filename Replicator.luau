@@ -14,6 +14,7 @@
 -- -- State
 
 local Module = {}
+Module.__index = Module
 
 export type DataTransferClass = {
 	DTC: {[number | string]: string | number}?,
@@ -28,6 +29,7 @@ export type DataTransferObject = typeof(setmetatable({} :: any, {} :: DataTransf
 
 export type Replicator = typeof(setmetatable({} :: {
     Buffer: buffer,
+    Classes: {[number | DataTransferClass]: DataTransferClass | number},
     FreeList: {number},
     Objects: {[number | DataTransferObject]: DataTransferObject | number},
     RemoteEvent: RemoteEvent,
@@ -53,6 +55,7 @@ local table_insert = table.insert
 function Module.new(remoteEvent: RemoteEvent, maximumPacketSize: number): Replicator
     return setmetatable({
         Buffer = buffer_create(maximumPacketSize),
+        Classes = {},
         FreeList = {},
         Objects = {},
         RemoteEvent = remoteEvent,
@@ -81,6 +84,8 @@ end
     Instruct the recipient to construct an object with the given identity.
 ]]
 function Module.construct(self: Replicator, player: Player, object: DataTransferObject)
+    local classes = self.Classes
+
     local identity = self.Objects[object]
     if not identity then
         error("Object wasn't initialized.")
@@ -90,7 +95,7 @@ function Module.construct(self: Replicator, player: Player, object: DataTransfer
     local top = self.Top
 
     buffer_writeu16(b, top, identity)
-    buffer_writeu8(b, top + 2, Classes[getmetatable(object)])
+    buffer_writeu8(b, top + 2, classes[getmetatable(object)])
     
     self.Top += object:dtp(b, top + 5) + 5
 end
@@ -158,23 +163,24 @@ end
     returns: classIdentity
 ]]
 function Module.registerClass(self: Replicator, dataTransferClass: DataTransferClass, identity: number?): number
+	local classes = self.Classes
     if identity then
         if identity < 0 or identity > 0xFF then
             error(string_format("Expected class registry ID to be between 0 and 255; got '%d'.", identity))
         end
 
-        local formerClass = Classes[id]
+        local formerClass = classes[identity]
         if formerClass then
             error(string_format("Attempt to override registered class '%s'.", tostring(formerClass)))
         end
     else
-        identity = #Classes
+        identity = #classes
     end
 
-    Classes[identity + 1] = dataTransferClass
-    Classes[dataTransferClass] = identity
+    classes[identity + 1] = dataTransferClass
+    classes[dataTransferClass] = identity
 
-    return id
+    return identity
 end
 
 --[[
@@ -182,8 +188,9 @@ end
     returns: methodIdentity
 ]]
 function Module.registerMethod(dataTransferClass: DataTransferClass, key: string, identity: number?): number
-    if not Classes[dataTransferClass] then
-        error(string_format("Class '%s' must be registered to register a method.", tostring(dataTransferClass))
+    local classes = self.Classes
+    if not classes[dataTransferClass] then
+        error(string_format("Class '%s' must be registered to register a method.", tostring(dataTransferClass)))
     end
   
     if identity then
@@ -214,6 +221,7 @@ function Module.handle(b: buffer, miscellaneous: {any})
     local size = buffer_len(b)
 
     local objects = self.Objects
+    local classes = self.Classes
     
     while bufferOffset < size do
         local identity = buffer_readu16(b, bufferOffset)
@@ -236,7 +244,7 @@ function Module.handle(b: buffer, miscellaneous: {any})
             local typeIdentity = buffer.readu8(b, bufferOffset) + 1
             bufferOffset += 1
 
-            local class = Classes[typeIdentity]
+            local class = classes[typeIdentity]
             if not class then
                 error(string_format("Class or type with identity '%d' does not exist.", typeIdentity))
             end
