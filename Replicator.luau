@@ -100,7 +100,7 @@ function Module.construct(self: Replicator, player: Player, object: DataTransfer
     buffer_writeu16(b, top, identity)
     buffer_writeu8(b, top + 2, classes[getmetatable(object)])
     
-    self.Top += object:dtp(b, top + 5) + 5
+    self.Top += object:dtp(b, top + 3) + 3
 end
 
 --[[
@@ -120,7 +120,7 @@ function Module.invoke(self: Replicator, player: Player, object: DataTransferObj
     
     local dtpCallback = object.DTP[key]
     if dtpCallback then
-        self.Top += dtpCallback(b, top + 5, ...) + 5
+        self.Top += dtpCallback(b, top + 3, ...) + 3
     end
 end
 
@@ -244,7 +244,7 @@ function Module.handle(b: buffer, miscellaneous: {any})
             bufferOffset += bufferOffsetOffset
             arrayOffset += arrayOffsetOffset
         else
-            local typeIdentity = buffer.readu8(b, bufferOffset) + 1
+            local typeIdentity = buffer_readu8(b, bufferOffset) + 1
             bufferOffset += 1
 
             local class = classes[typeIdentity]
