@@ -65,6 +65,9 @@ function Module.new(remoteEvent: RemoteEvent, maximumPacketSize: number): Replic
     }, Module)
 end
 
+
+-- -- Methods
+
 --[[
     Allocate a new buffer and copy over old data.
 ]]
@@ -258,6 +261,9 @@ function Module.handle(b: buffer, miscellaneous: {any})
     end
 end
 
+--[[
+	Queue and/or handle incoming data to insure a chronologically ordered process.
+]]
 function Module.receive(self: Replicator, b: buffer, miscellaneous: {any}?)
     miscellaneous = miscellaneous or {}
     
@@ -322,3 +328,8 @@ function Module.sendServer(self: Replicator)
         table_clear(miscellaneous)
     end
 end
+
+
+-- -- End
+
+return Module
