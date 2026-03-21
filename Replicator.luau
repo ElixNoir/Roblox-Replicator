@@ -295,7 +295,7 @@ function Module.sendClient(self: Replicator, player: Player)
     
     local data = buffer_create(top)
     buffer_copy(buff, 0, b, 0, top)
-    buffer_fill(Buffer, 0, 0, top)
+    buffer_fill(b, 0, 0, top)
     self.Top = 0
 
     if #miscellaneous == 0 then
@@ -318,7 +318,7 @@ function Module.sendServer(self: Replicator)
     
     local data = buffer_create(top)
     buffer_copy(buff, 0, b, 0, top)
-    buffer_fill(Buffer, 0, 0, top)
+    buffer_fill(b, 0, 0, top)
     self.Top = 0
 
     if #miscellaneous == 0 then
