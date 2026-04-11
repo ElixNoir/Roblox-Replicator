@@ -190,7 +190,7 @@ end
     Register a class's method key, or function name, with a specified or generated identity.
     returns: methodIdentity
 ]]
-function Module.registerMethod(dataTransferClass: DataTransferClass, key: string, identity: number?): number
+function Module.registerMethod(self: Replicator, dataTransferClass: DataTransferClass, key: string, identity: number?): number
     local classes = self.Classes
     if not classes[dataTransferClass] then
         error(string_format("Class '%s' must be registered to register a method.", tostring(dataTransferClass)))
@@ -219,7 +219,7 @@ end
 --[[
     Unpack and interpret instructions for constructing objects or invoking object methods.
 ]]
-function Module.handle(b: buffer, miscellaneous: {any})
+function Module.handle(self: Replicator, b: buffer, miscellaneous: {any})
     local bufferOffset, arrayOffset = 0, 1
     local size = buffer_len(b)
 
