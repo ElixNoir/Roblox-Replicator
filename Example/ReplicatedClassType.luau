@@ -118,7 +118,7 @@ do -- .destroy
 		-- Destruction logic
 	end
 
-	function Module.DTP.destroy(b: buffer, offset: number, message: string): number
+	function Module.DTP.destroy(self: ReplicatedClassType, b: buffer, offset: number, message: string): number
 		-- Example use of buffer in DTP method
 		local length = #message
 		buffer.writeu16(b, offset, length)
@@ -127,7 +127,7 @@ do -- .destroy
 		return length + 2 -- number of consumed bytes
 	end
 
-	function Module.DTU.destroy(b: buffer, offset: number, miscellaneous: {any}?, player: Player?): (number, number)
+	function Module.DTU.destroy(self: ReplicatedClassType, b: buffer, offset: number, miscellaneous: {any}?, player: Player?): (number, number)
 		-- Example use of buffer in DTU method
 		local length = buffer.readu16(b, offset)
 		print(buffer.readstring(b, offset + 2, length))
