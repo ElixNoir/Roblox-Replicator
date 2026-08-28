@@ -6,9 +6,8 @@
 
 ]]
 
---!strict
 --!native
---!optimize 2
+--!strict
 
 
 -- -- State
@@ -170,7 +169,7 @@ end
 function Module.initialize(self: Replicator, object: DataTransferObject)
 	local objects = self.Objects
 	if #objects >= 0x10000 then
-		error("Ran out of valid, unique identities to allocate.")
+		error("Ran out of valid unique identities to allocate.")
 	end
 
 	local freeList = self.FreeList -- #self.Objects could be used for the next free identity instead, but since Lua tables will switch broken arrays to hashmaps, this does not work optimally despite appearing that way
@@ -189,7 +188,7 @@ end
 --[[
     Unpack and interpret instructions for constructing objects or invoking object methods.
 ]]
-function Module.handle(self: Replicator, b: buffer, miscellaneous: {any}, player: Player?)
+function Module.handle(self: Replicator, b: buffer, miscellaneous: {any}, client: Player?)
 	local bufferOffset, arrayOffset = 0, 1
 	local size = buffer_len(b)
 
@@ -210,7 +209,7 @@ function Module.handle(self: Replicator, b: buffer, miscellaneous: {any}, player
 				error(`Method '{(object :: DataTransferObject).DTC[methodIdentity]}' is missing from object '{tostring(object)}' of class '{tostring(getmetatable(object))}'.`)
 			end
 
-			local bufferOffsetOffset, arrayOffsetOffset = method(object :: DataTransferObject, b, bufferOffset, miscellaneous[arrayOffset], player)
+			local bufferOffsetOffset, arrayOffsetOffset = method(object :: DataTransferObject, b, bufferOffset, miscellaneous[arrayOffset], client)
 			bufferOffset += bufferOffsetOffset
 			arrayOffset += arrayOffsetOffset
 		else
@@ -222,7 +221,7 @@ function Module.handle(self: Replicator, b: buffer, miscellaneous: {any}, player
 				error(`Class or type with identity '{typeIdentity}' does not exist.`)
 			end
 
-			local object, bufferOffsetOffset, arrayOffsetOffset = (class :: DataTransferClass).dtu(b, bufferOffset, miscellaneous[arrayOffset], player)
+			local object, bufferOffsetOffset, arrayOffsetOffset = (class :: DataTransferClass).dtu(b, bufferOffset, miscellaneous[arrayOffset], client)
 			bufferOffset += bufferOffsetOffset
 			arrayOffset += arrayOffsetOffset
 
@@ -234,7 +233,7 @@ end
 --[[
 	Queue and/or handle incoming data to insure a chronologically ordered process.
 ]]
-function Module.receive(self: Replicator, b: buffer, miscellaneous: {any}?, player: Player?)
+function Module.receive(self: Replicator, b: buffer, miscellaneous: {any}?, client: Player?)
 	miscellaneous = miscellaneous or {}
 
 	local requestQueue, requestQueueBottom = self.RequestQueue, self.RequestQueueBottom
@@ -243,11 +242,11 @@ function Module.receive(self: Replicator, b: buffer, miscellaneous: {any}?, play
 		return
 	end
 
-	self:handle(b, miscellaneous, player)
+	self:handle(b, miscellaneous, client)
 
 	while requestQueueBottom ~= 0 do
 		local data = requestQueue[requestQueueBottom]
-		self:handle(data.Buffer, data.Miscellaneous, player)
+		self:handle(data.Buffer, data.Miscellaneous, client)
 	end
 
 	self.RequestQueueBottom = 0
@@ -257,7 +256,7 @@ end
     (Server use only)
     Flush the data and send it to a client.
 ]]
-function Module.sendClient(self: Replicator, player: Player)
+function Module.sendToClient(self: Replicator, client: Player)
 	local b = self.Buffer
 	local remote = self.RemoteEvent
 	local top = self.Top
@@ -269,9 +268,36 @@ function Module.sendClient(self: Replicator, player: Player)
 	self.Top = 0
 
 	if #miscellaneous == 0 then
-		remote:FireClient(player, data)
+		remote:FireClient(client, data)
 	else
-		remote:FireClient(player, data, miscellaneous)
+		remote:FireClient(client, data, miscellaneous)
+		table_clear(miscellaneous)
+	end
+end
+
+--[[
+    (Server use only)
+    Flush the data and send it to all clients.
+]]
+function Module.sendToClients(self: Replicator, clients: {Player})
+	local b = self.Buffer
+	local remote = self.RemoteEvent
+	local top = self.Top
+	local miscellaneous = self.Miscellaneous
+
+	local data = buffer_create(top)
+	buffer_copy(data, 0, b, 0, top)
+	buffer_fill(b, 0, 0, top)
+	self.Top = 0
+
+	if #miscellaneous == 0 then
+		for _, client in clients do
+			remote:FireClient(client, data)
+		end
+	else
+		for _, client in clients do
+			remote:FireClient(client, data, miscellaneous)
+		end
 		table_clear(miscellaneous)
 	end
 end
@@ -280,7 +306,7 @@ end
     (Client use only)
     Flush the data and send it to the server.
 ]]
-function Module.sendServer(self: Replicator)
+function Module.sendToServer(self: Replicator)
 	local b = self.Buffer
 	local remote = self.RemoteEvent
 	local top = self.Top
